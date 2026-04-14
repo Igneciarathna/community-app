@@ -19,7 +19,7 @@ type Post = {
   author: {
     id: string;
     name: string;
-    avatar: string;
+    image: string | null;
     email: string;
   };
 };
@@ -202,7 +202,7 @@ export default function CommunityPage() {
             <article key={post.id} className="bg-white border border-zinc-200 rounded-2xl p-5 hover:border-indigo-200 hover:shadow-md transition-all shadow-sm">
               <div className="flex justify-between items-start">
                 <div className="flex gap-3">
-                  <img src={post.author.avatar} alt={post.author.name} className="w-11 h-11 rounded-full border border-zinc-200 flex-shrink-0 shadow-sm" />
+                  <img src={post.author.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.author.name}`} alt={post.author.name} className="w-11 h-11 rounded-full border border-zinc-200 flex-shrink-0 shadow-sm" />
                   <div>
                     <h3 className="font-semibold text-zinc-900">{post.author.name}</h3>
                     <p className="text-xs text-zinc-500 font-medium">
