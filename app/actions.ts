@@ -41,9 +41,9 @@ export async function generateOtp(email: string) {
     });
 
     // For development without an email provider setup yet, we log it
-    // console.log(`\n\n==========================================`);
-    // console.log(`🔐 OTP Generated for ${email}: ${otp}`);
-    // console.log(`==========================================\n\n`);
+    console.log(`\n\n==========================================`);
+    console.log(`🔐 OTP Generated for ${email}: ${otp}`);
+    console.log(`==========================================\n\n`);
 
     return { success: true, otp };
   } catch (err: any) {
