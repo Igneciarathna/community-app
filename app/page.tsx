@@ -28,12 +28,18 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const res = await generateOtp(email);
+      if (!res.success) {
+        setIsLoading(false);
+        setError(`Vercel DB Error: ${res.error}`);
+        return;
+      }
+      
       if (res.otp) setDemoOtp(res.otp);
       setIsLoading(false);
       setStep("otp");
-    } catch (err) {
+    } catch (err: any) {
       setIsLoading(false);
-      setError("Failed to send OTP. Please try again.");
+      setError("Failed to reach server. Please try again.");
     }
   };
 
