@@ -1,6 +1,8 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "./api/auth/[...nextauth]/route";
 
 export async function authenticateUser(email: string) {
   let user = await prisma.user.findUnique({
@@ -82,4 +84,38 @@ export async function submitPost(content: string, image: string | undefined | nu
     ...post,
     createdAt: post.createdAt.toISOString(),
   };
+}
+
+export async function deletePost(postId: string) {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user) {
+    return { success: false, error: "You must be logged in to delete a post." };
+  }
+
+  const userId = (session.user as any).id;
+
+  try {
+    // Check if the post exists and belongs to the user
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+    });
+
+    if (!post) {
+      return { success: false, error: "Post not found." };
+    }
+
+    if (post.authorId !== userId) {
+      return { success: false, error: "You are not authorized to delete this post." };
+    }
+
+    await prisma.post.delete({
+      where: { id: postId },
+    });
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("Delete Post Error:", err);
+    return { success: false, error: "Failed to delete post." };
+  }
 }

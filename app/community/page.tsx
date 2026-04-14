@@ -6,7 +6,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { fetchPosts, submitPost } from "../actions";
+import { fetchPosts, submitPost, deletePost } from "../actions";
 
 type Post = {
   id: string;
@@ -34,10 +34,11 @@ export default function CommunityPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [currentUser, setCurrentUser] = useState({
-    name: "Loading...",
     avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Demo",
     id: "",
   });
+
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -89,6 +90,23 @@ export default function CommunityPage() {
     } catch (err) {
       console.error(err);
       alert("Oh no! Failed to write to the neon database.");
+    }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    if (!window.confirm("Are you sure you want to delete this post?")) return;
+
+    try {
+      const result = await deletePost(postId);
+      if (result.success) {
+        setPosts(posts.filter(p => p.id !== postId));
+        setActiveMenuId(null);
+      } else {
+        alert(result.error);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete post.");
     }
   };
 
@@ -210,9 +228,31 @@ export default function CommunityPage() {
                     </p>
                   </div>
                 </div>
-                <button className="text-zinc-400 hover:text-zinc-700 transition-colors p-1" title="Options">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-                </button>
+                <div className="relative">
+                  <button 
+                    onClick={() => setActiveMenuId(activeMenuId === post.id ? null : post.id)}
+                    className="text-zinc-400 hover:text-zinc-700 transition-colors p-1" 
+                    title="Options"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                  </button>
+
+                  {activeMenuId === post.id && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white border border-zinc-200 rounded-xl shadow-lg z-20 py-1 animate-in fade-in zoom-in duration-200">
+                      {currentUser.id === post.authorId ? (
+                        <button
+                          onClick={() => handleDeletePost(post.id)}
+                          className="flex items-center gap-2 w-full px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 transition-colors font-medium text-left"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                          Delete Post
+                        </button>
+                      ) : (
+                        <div className="px-4 py-2 text-sm text-zinc-500 italic">No options available</div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
               
               <div className="mt-4 text-zinc-700 text-sm md:text-base leading-relaxed break-words">
