@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { authenticateUser } from "./actions";
+import { generateOtp } from "./actions";
 import { signIn } from "next-auth/react";
 
 export default function LoginPage() {
@@ -17,7 +17,7 @@ export default function LoginPage() {
   // Simple unmount/mount animation class
   const animationClass = "transition-all duration-500 ease-out";
 
-  const handleEmailSubmit = (e: React.FormEvent) => {
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setError("Please enter a valid email address.");
@@ -25,11 +25,14 @@ export default function LoginPage() {
     }
     setError("");
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      await generateOtp(email);
       setIsLoading(false);
       setStep("otp");
-    }, 800);
+    } catch (err) {
+      setIsLoading(false);
+      setError("Failed to send OTP. Please try again.");
+    }
   };
 
   const handleOtpChange = (index: number, value: string) => {
@@ -65,27 +68,26 @@ export default function LoginPage() {
     }
 
     setIsLoading(true);
-    if (enteredOtp === "1234") {
-      try {
-        const user = await authenticateUser(email);
-        localStorage.setItem("communityUserId", user.id);
-        localStorage.setItem("communityUserAvatar", user.image as string);
-        localStorage.setItem("communityUserName", user.name as string);
+    try {
+      const res = await signIn("credentials", {
+        redirect: false,
+        email,
+        otp: enteredOtp,
+      });
 
+      if (res?.error) {
+        setIsLoading(false);
+        setError(res.error); // Display "Invalid OTP" or "Expired"
+      } else if (res?.ok) {
         setIsLoading(false);
         setStep("success");
         setTimeout(() => {
           router.push("/community");
         }, 1500);
-      } catch (err) {
-        setIsLoading(false);
-        setError("Database error. Is Prisma configured?");
       }
-    } else {
-      setTimeout(() => {
-        setIsLoading(false);
-        setError("Invalid OTP. Please use '1234'.");
-      }, 1000);
+    } catch (err) {
+      setIsLoading(false);
+      setError("An unexpected error occurred.");
     }
   };
 
@@ -183,7 +185,7 @@ export default function LoginPage() {
               </p>
               <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-100 text-xs text-indigo-700">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg>
-                Demo note: enter <span className="font-bold text-indigo-800">1234</span>
+                Demo note: Look in your terminal/server console to see the 4-digit code!
               </div>
             </div>
 

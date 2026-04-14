@@ -21,6 +21,32 @@ export async function authenticateUser(email: string) {
   return user;
 }
 
+export async function generateOtp(email: string) {
+  // Generate a 4 digit OTP
+  const otp = Math.floor(1000 + Math.random() * 9000).toString();
+  
+  // Cleanup any existing tokens for this email
+  await prisma.verificationToken.deleteMany({
+    where: { identifier: email },
+  });
+
+  // Store the new OTP in the db with a 10 min expiration
+  await prisma.verificationToken.create({
+    data: {
+      identifier: email,
+      token: otp,
+      expires: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
+    },
+  });
+
+  // For development without an email provider setup yet, we log it
+  console.log(`\n\n==========================================`);
+  console.log(`🔐 OTP Generated for ${email}: ${otp}`);
+  console.log(`==========================================\n\n`);
+
+  return { success: true };
+}
+
 export async function fetchPosts() {
   const posts = await prisma.post.findMany({
     orderBy: { createdAt: 'desc' },
