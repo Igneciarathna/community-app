@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [otp, setOtp] = useState(["", "", "", ""]);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [demoOtp, setDemoOtp] = useState<string | null>(null);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Simple unmount/mount animation class
@@ -26,7 +27,8 @@ export default function LoginPage() {
     setError("");
     setIsLoading(true);
     try {
-      await generateOtp(email);
+      const res = await generateOtp(email);
+      if (res.otp) setDemoOtp(res.otp);
       setIsLoading(false);
       setStep("otp");
     } catch (err) {
@@ -185,7 +187,11 @@ export default function LoginPage() {
               </p>
               <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-100 text-xs text-indigo-700">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg>
-                Demo note: Look in your terminal/server console to see the 4-digit code!
+                {demoOtp ? (
+                  <>Demo note: enter <span className="font-bold text-indigo-800">{demoOtp}</span></>
+                ) : (
+                  <>Demo note: Look in your terminal/server console to see the 4-digit code!</>
+                )}
               </div>
             </div>
 

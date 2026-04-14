@@ -44,7 +44,7 @@ export async function generateOtp(email: string) {
   console.log(`🔐 OTP Generated for ${email}: ${otp}`);
   console.log(`==========================================\n\n`);
 
-  return { success: true };
+  return { success: true, otp };
 }
 
 export async function fetchPosts() {
