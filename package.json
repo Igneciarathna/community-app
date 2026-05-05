@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node --max-http-header-size=80000 ./node_modules/next/dist/bin/next dev",
     "start": "next start",
     "lint": "eslint",
     "build": "prisma generate && next build",
@@ -17,7 +17,8 @@
     "next": "16.2.3",
     "next-auth": "^4.24.13",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "react-easy-crop": "^5.5.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

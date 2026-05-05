@@ -72,9 +72,34 @@ export const authOptions = {
     strategy: "jwt" as const,
   },
   callbacks: {
+    async jwt({ token, user }: any) {
+      if (user) {
+        token.id = user.id;
+      }
+      // Only delete massive base64 images from the JWT cookie. Keep standard Google URLs.
+      if (token.picture && token.picture.startsWith('data:image')) {
+        delete token.picture;
+      }
+      return token;
+    },
     async session({ session, token }: any) {
       if (session.user && token.sub) {
         (session.user as any).id = token.sub;
+
+        // Dynamically fetch the image directly from the DB so we bypass the strict 4KB cookie limit
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.sub },
+            select: { image: true }
+          });
+          if (dbUser?.image) {
+            session.user.image = dbUser.image;
+          } else if (token.picture) {
+            session.user.image = token.picture; // Fallback to Google image URL if in token
+          }
+        } catch (e) {
+          console.error("Failed to fetch user image for session:", e);
+        }
       }
       return session;
     },

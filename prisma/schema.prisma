@@ -44,6 +44,10 @@ model User {
   accounts      Account[]
   sessions      Session[]
   createdAt     DateTime  @default(now())
+  likes         Like[]
+  comments      Comment[]
+  notifications Notification[] @relation("UserNotifications")
+  actedOn       Notification[] @relation("ActorNotifications")
 }
 
 model VerificationToken {
@@ -63,4 +67,45 @@ model Post {
   likes     Int      @default(0)
   comments  Int      @default(0)
   createdAt DateTime @default(now())
+  updatedAt DateTime? @default(now()) @updatedAt
+  likedBy   Like[]
+  commentList Comment[]
+  notifications Notification[]
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  actorId   String
+  postId    String?
+  type      String   // e.g., "LIKE"
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  actor     User     @relation("ActorNotifications", fields: [actorId], references: [id], onDelete: Cascade)
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  authorId  String
+  postId    String
+  createdAt DateTime @default(now())
+
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
 }
