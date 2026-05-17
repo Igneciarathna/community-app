@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../generated-client"
 }
 
 datasource db {
@@ -60,6 +61,7 @@ model VerificationToken {
 model Post {
   id            String         @id @default(cuid())
   content       String
+  images        PostImage[]
   authorId      String
   likes         Int            @default(0)
   comments      Int            @default(0)
@@ -69,16 +71,14 @@ model Post {
   likedBy       Like[]
   notifications Notification[]
   author        User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  images        PostImage[]
-  image         String?
 }
 
 model PostImage {
   id        String   @id @default(cuid())
-  url       String
+  url       String   @db.Text
   postId    String
-  createdAt DateTime @default(now())
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 }
 
 model Like {

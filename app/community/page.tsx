@@ -17,6 +17,7 @@ type Post = {
   updatedAt: string;
   likes: number;
   comments: number;
+  images: { id: string; url: string }[];
   image?: string | null;
   authorId: string;
   author: {
@@ -34,7 +35,7 @@ export default function CommunityPage() {
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [newPostContent, setNewPostContent] = useState("");
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [currentUser, setCurrentUser] = useState({
@@ -47,7 +48,7 @@ export default function CommunityPage() {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
-  const [editImage, setEditImage] = useState<string | null | undefined>(undefined);
+  const [editImages, setEditImages] = useState<string[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -209,14 +210,22 @@ export default function CommunityPage() {
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setSelectedImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    const files = e.target.files;
+    if (files) {
+      Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setSelectedImages(prev => [...prev, reader.result as string]);
+        };
+        reader.readAsDataURL(file);
+      });
+      // Reset input
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  };
+
+  const removeSelectedImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleCreatePost = async (e: React.FormEvent) => {
@@ -225,14 +234,14 @@ export default function CommunityPage() {
       alert("You must be logged in to post.");
       return;
     }
-    if (!newPostContent.trim() && !selectedImage) return;
+    if (!newPostContent.trim() && selectedImages.length === 0) return;
 
     setIsCreatingPost(true);
     try {
-      const savedPost = await submitPost(newPostContent, selectedImage);
+      const savedPost = await submitPost(newPostContent, selectedImages);
       setPosts([savedPost as unknown as Post, ...posts]);
       setNewPostContent("");
-      setSelectedImage(null);
+      setSelectedImages([]);
     } catch (err) {
       console.error(err);
       alert("Oh no! Failed to write to the neon database.");
@@ -318,11 +327,11 @@ export default function CommunityPage() {
   };
 
   const handleUpdatePost = async (postId: string) => {
-    if (!editContent.trim() && !editImage) return;
+    if (!editContent.trim() && editImages.length === 0) return;
     setIsUpdating(true);
 
     try {
-      const result = await updatePost(postId, editContent, editImage !== undefined ? editImage : undefined);
+      const result = await updatePost(postId, editContent, editImages);
       if (result.success && result.post) {
         setPosts(posts.map(p => p.id === postId ? (result.post as unknown as Post) : p));
         setEditingPostId(null);
@@ -575,16 +584,20 @@ export default function CommunityPage() {
               </div>
             </div>
 
-            {selectedImage && (
-              <div className="relative mt-3 inline-block ml-14">
-                <img src={selectedImage} alt="Preview" className="h-32 object-contain rounded-lg border border-zinc-200 shadow-sm bg-zinc-50" />
-                <button
-                  type="button"
-                  onClick={() => setSelectedImage(null)}
-                  className="absolute -top-2 -right-2 bg-zinc-800 text-white rounded-full p-1 hover:bg-zinc-700 shadow-md transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-                </button>
+            {selectedImages.length > 0 && (
+              <div className="mt-3 ml-14 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {selectedImages.map((img, idx) => (
+                  <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden border border-zinc-200 shadow-sm bg-zinc-50">
+                    <img src={img} alt="Preview" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeSelectedImage(idx)}
+                      className="absolute top-1.5 right-1.5 bg-zinc-900/60 backdrop-blur-md text-white rounded-full p-1 hover:bg-zinc-900 transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -594,13 +607,15 @@ export default function CommunityPage() {
                   type="file"
                   accept="image/*"
                   className="hidden"
+                  multiple
                   ref={fileInputRef}
                   onChange={handleImageChange}
                 />
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
+                  disabled={selectedImages.length >= 6}
+                  className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-30"
                   title="Add Image"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" /></svg>
@@ -611,7 +626,7 @@ export default function CommunityPage() {
               </div>
               <button
                 type="submit"
-                disabled={(!newPostContent.trim() && !selectedImage) || !currentUser.id || isCreatingPost}
+                disabled={(!newPostContent.trim() && selectedImages.length === 0) || !currentUser.id || isCreatingPost}
                 className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-zinc-100 disabled:text-zinc-400 text-white font-medium py-2 px-6 rounded-xl transition-all active:scale-[0.98] shadow-sm disabled:shadow-none shadow-indigo-600/20 text-sm flex items-center justify-center gap-2"
               >
                 {isCreatingPost ? (
@@ -663,7 +678,7 @@ export default function CommunityPage() {
                             onClick={() => {
                               setEditingPostId(post.id);
                               setEditContent(post.content);
-                              setEditImage(post.image || null);
+                              setEditImages(post.images.map(img => img.url));
                               setActiveMenuId(null);
                             }}
                             className="flex items-center gap-2 w-full px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors font-medium text-left"
@@ -702,16 +717,20 @@ export default function CommunityPage() {
                       autoFocus
                     />
                     
-                    {editImage && (
-                      <div className="relative inline-block w-max">
-                        <img src={editImage} alt="Edit preview" className="h-32 object-contain rounded-lg border border-zinc-200 shadow-sm bg-zinc-50" />
-                        <button
-                          type="button"
-                          onClick={() => setEditImage(null)}
-                          className="absolute -top-2 -right-2 bg-zinc-800 text-white rounded-full p-1 hover:bg-zinc-700 shadow-md transition-colors z-10"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-                        </button>
+                    {editImages.length > 0 && (
+                      <div className="grid grid-cols-3 gap-2 mt-2">
+                        {editImages.map((img, idx) => (
+                          <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border border-zinc-200">
+                            <img src={img} alt="Edit preview" className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => setEditImages(prev => prev.filter((_, i) => i !== idx))}
+                              className="absolute top-1 right-1 bg-zinc-900/60 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                            </button>
+                          </div>
+                        ))}
                       </div>
                     )}
 
@@ -722,23 +741,26 @@ export default function CommunityPage() {
                           accept="image/*"
                           className="hidden"
                           id={`edit-image-${post.id}`}
+                          multiple
                           onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onloadend = () => setEditImage(reader.result as string);
-                              reader.readAsDataURL(file);
+                            const files = e.target.files;
+                            if (files) {
+                              Array.from(files).forEach(file => {
+                                const reader = new FileReader();
+                                reader.onloadend = () => setEditImages(prev => [...prev, reader.result as string]);
+                                reader.readAsDataURL(file);
+                              });
                             }
                           }}
                         />
                         <button
                           type="button"
-                          onClick={() => document.getElementById(`edit-image-${post.id}`)?.click()}
+                          onClick={() => (document.getElementById(`edit-image-${post.id}`) as HTMLInputElement)?.click()}
                           className="p-1.5 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-medium"
-                          title="Change Image"
+                          title="Add Images"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" /></svg>
-                          {editImage ? 'Change Image' : 'Add Image'}
+                          Add Images
                         </button>
                       </div>
                       
@@ -751,7 +773,7 @@ export default function CommunityPage() {
                         </button>
                         <button
                           onClick={() => handleUpdatePost(post.id)}
-                          disabled={isUpdating || (!editContent.trim() && !editImage)}
+                          disabled={isUpdating || (!editContent.trim() && editImages.length === 0)}
                           className="px-3 py-1.5 text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition-all shadow-sm shadow-indigo-600/10 disabled:opacity-50"
                         >
                           {isUpdating ? "Saving..." : "Save Changes"}
@@ -762,11 +784,37 @@ export default function CommunityPage() {
                 ) : (
                   <>
                     {post.content}
-                    {post.image && (
-                      <div className="mt-3 mb-1">
-                        <img src={post.image} alt="Post Attachment" className="w-full h-auto max-h-[700px] object-contain rounded-xl border border-zinc-200 bg-zinc-50" />
+                    {post.images && post.images.length > 0 ? (
+                      <div className={`mt-3 mb-1 grid gap-2 ${
+                        post.images.length === 1 ? 'grid-cols-1' : 
+                        post.images.length === 2 ? 'grid-cols-2' : 
+                        'grid-cols-2 sm:grid-cols-3'
+                      }`}>
+                        {post.images.map((img) => (
+                          <div key={img.id} className={`relative rounded-xl overflow-hidden border border-zinc-100 bg-zinc-50 shadow-sm ${
+                            post.images.length === 1 ? '' : 'aspect-square'
+                          }`}>
+                            <img 
+                              src={img.url} 
+                              alt="Post Attachment" 
+                              className={`w-full cursor-pointer hover:scale-[1.02] transition-transform duration-500 ${
+                                post.images.length === 1 ? 'h-auto max-h-[700px] object-contain' : 'h-full object-cover'
+                              }`} 
+                              onClick={() => window.open(img.url, '_blank')}
+                            />
+                          </div>
+                        ))}
                       </div>
-                    )}
+                    ) : post.image ? (
+                      <div className="mt-3 mb-1 relative rounded-xl overflow-hidden border border-zinc-100 bg-zinc-50 shadow-sm">
+                        <img 
+                          src={post.image} 
+                          alt="Post Attachment" 
+                          className="w-full h-auto max-h-[700px] object-contain cursor-pointer hover:scale-[1.02] transition-transform duration-500" 
+                          onClick={() => window.open(post.image!, '_blank')}
+                        />
+                      </div>
+                    ) : null}
                   </>
                 )}
               </div>

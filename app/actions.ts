@@ -55,22 +55,30 @@ export async function generateOtp(email: string) {
 }
 
 export async function fetchPosts() {
-  const posts = await prisma.post.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: {
-      author: true,
-      likedBy: true,
-    },
-  });
+  try {
+    const posts = await prisma.post.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        author: true,
+        likedBy: true,
+        images: true,
+      },
+    });
 
-  return posts.map((post: any) => ({
-    ...post,
-    createdAt: post.createdAt.toISOString(),
-    updatedAt: (post.updatedAt || post.createdAt).toISOString(),
-  }));
+    return posts.map((post: any) => ({
+      ...post,
+      createdAt: post.createdAt?.toISOString() || new Date().toISOString(),
+      updatedAt: (post.updatedAt || post.createdAt || new Date()).toISOString(),
+      images: post.images || [],
+      image: post.image || null
+    }));
+  } catch (error: any) {
+    console.error("fetchPosts Error:", error);
+    throw new Error(`Database Fetch Failed: ${error.message}`);
+  }
 }
 
-export async function submitPost(content: string, image: string | undefined | null) {
+export async function submitPost(content: string, images: string[] | undefined | null) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {
@@ -86,12 +94,15 @@ export async function submitPost(content: string, image: string | undefined | nu
   const post = await prisma.post.create({
     data: {
       content,
-      image: image || null,
       authorId,
+      images: {
+        create: (images || []).map(url => ({ url }))
+      }
     },
     include: {
       author: true,
       likedBy: true,
+      images: true,
     }
   });
 
@@ -99,6 +110,7 @@ export async function submitPost(content: string, image: string | undefined | nu
     ...post,
     createdAt: post.createdAt.toISOString(),
     updatedAt: ((post as any).updatedAt || post.createdAt).toISOString(),
+    images: post.images || []
   };
 }
 
@@ -136,7 +148,7 @@ export async function deletePost(postId: string) {
   }
 }
 
-export async function updatePost(postId: string, content: string, image?: string | null) {
+export async function updatePost(postId: string, content: string, images?: string[] | null) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {
@@ -159,8 +171,13 @@ export async function updatePost(postId: string, content: string, image?: string
     }
 
     const dataToUpdate: any = { content };
-    if (image !== undefined) {
-      dataToUpdate.image = image;
+    
+    if (images !== undefined) {
+      // Simple strategy: Replace all images
+      await prisma.postImage.deleteMany({ where: { postId } });
+      dataToUpdate.images = {
+        create: (images || []).map(url => ({ url }))
+      };
     }
 
     const updatedPost = await prisma.post.update({
@@ -169,6 +186,7 @@ export async function updatePost(postId: string, content: string, image?: string
       include: {
         author: true,
         likedBy: true,
+        images: true,
       },
     });
 
@@ -178,6 +196,7 @@ export async function updatePost(postId: string, content: string, image?: string
         ...updatedPost,
         createdAt: updatedPost.createdAt.toISOString(),
         updatedAt: ((updatedPost as any).updatedAt || updatedPost.createdAt).toISOString(),
+        images: updatedPost.images || []
       }
     };
   } catch (err: any) {
